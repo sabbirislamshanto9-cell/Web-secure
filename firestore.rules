@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+             request.auth.token.email == 'aryanshanto69@gmail.com';
+    }
+
+    // =========================
+    // USERS
+    // =========================
+    match /users/{uid} {
+      // User can read only their own profile; admin can read all.
+      allow read: if isAdmin() ||
+                  (signedIn() && request.auth.uid == uid);
+
+      // A newly-created Firebase Auth user can create their own profile.
+      allow create: if signedIn() &&
+                    request.auth.uid == uid &&
+                    request.resource.data.walletBalance == 0 &&
+                    request.resource.data.status == 'active';
+
+      // User may update profile information, but cannot directly
+      // change wallet balance, status, email or profileId.
+      allow update: if isAdmin() ||
+                    (signedIn() &&
+                     request.auth.uid == uid &&
+                     request.resource.data.walletBalance ==
+                       resource.data.walletBalance &&
+                     request.resource.data.status ==
+                       resource.data.status &&
+                     request.resource.data.email ==
+                       resource.data.email &&
+                     request.resource.data.profileId ==
+                       resource.data.profileId);
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // PUBLIC SITE DATA
+    // =========================
+    // The website homepage is public, so these collections must be
+    // readable before login. Writes remain admin-only.
+    match /games/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /paymentMethods/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{id} {
+      // Needed for public homepage, branding/notice and signup
+      // default-avatar loading.
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // =========================
+    // ORDERS
+    // =========================
+    match /orders/{id} {
+      allow read: if isAdmin() ||
+                  (signedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if signedIn() &&
+                    request.resource.data.userId == request.auth.uid;
+
+      allow update: if isAdmin() ||
+                    (signedIn() &&
+                     resource.data.userId == request.auth.uid &&
+                     resource.data.status == 'Pending' &&
+                     request.resource.data.status == resource.data.status);
+
+      allow delete: if isAdmin() ||
+                    (signedIn() &&
+                     resource.data.userId == request.auth.uid &&
+                     resource.data.status == 'Pending');
+    }
+
+    // =========================
+    // MONEY REQUESTS
+    // =========================
+    match /moneyRequests/{id} {
+      allow read: if isAdmin() ||
+                  (signedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if signedIn() &&
+                    request.resource.data.userId == request.auth.uid;
+
+      allow update, delete: if isAdmin() ||
+                            (signedIn() &&
+                             resource.data.userId == request.auth.uid &&
+                             resource.data.status == 'Pending');
+    }
+
+    // =========================
+    // SUPPORT MESSAGES
+    // =========================
+    match /supportMessages/{id} {
+      allow read: if isAdmin() ||
+                  (signedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if signedIn() &&
+                    request.resource.data.userId == request.auth.uid;
+
+      allow update, delete: if isAdmin() ||
+                            (signedIn() &&
+                             resource.data.userId == request.auth.uid);
+    }
+
+    // =========================
+    // DENY EVERYTHING ELSE
+    // =========================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "as-ff-store-securepay-backend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "firebase-admin": "^13.4.0"
+  }
+}
